@@ -1,3 +1,5 @@
+import { InterfaceDoc, TypeAliasDoc, FunctionDoc } from "../components/ApiDocs";
+
 # Plugin API
 
 A plugin is an npm package that exports a React component. Origin loads it into a panel at runtime.
@@ -22,29 +24,40 @@ Then in Origin: **Settings → Developer → Add plugin URL** → `http://localh
 
 Declares plugin identity shown in the launcher.
 
-```ts
-interface PluginManifest {
-  id: string; // reverse-domain, e.g. "com.yourname.myplugin"
-  name: string; // display name shown in launcher
-  description: string; // one-line description
-  icon: string; // emoji or image path
-  version: string; // semver, e.g. "0.1.0"
-}
-```
+<InterfaceDoc name="PluginManifest" />
 
 ### PluginContext
 
 Injected by Origin into your component at mount time. Values are stable for the lifetime of the panel — they don't change reactively.
 
-```ts
-interface PluginContext {
-  cardId: string; // unique ID of this panel instance
-  workspacePath: string; // absolute path to Origin's app data directory
-  theme: "light" | "dark";
-}
-```
+<InterfaceDoc name="PluginContext" />
 
 Use `cardId` to scope per-panel state. Use `workspacePath` as the root for any files you read or write.
+
+### PluginBus
+
+The inter-plugin communication bus available at `context.bus`.
+
+<InterfaceDoc name="PluginBus" />
+
+### PluginLifecycleEvent
+
+<TypeAliasDoc name="PluginLifecycleEvent" />
+
+### OriginChannelMap
+
+The typed registry for all bus channels. Plugins extend this via declaration merging to get compile-time safety on `publish`, `subscribe`, and `useBusChannel`.
+
+<InterfaceDoc name="OriginChannelMap" />
+
+```ts
+// In your plugin: channels.d.ts
+declare module "@origin/api" {
+  interface OriginChannelMap {
+    "com.yourname.myplugin:item-selected": { id: string; label: string };
+  }
+}
+```
 
 ---
 
@@ -83,6 +96,14 @@ The entry file must:
 
 - Have a **default export** that is a React component accepting `{ context: PluginContext }`
 - **Re-export `manifest`** as a named export so Origin can read metadata without fully loading the plugin
+
+---
+
+## Hooks
+
+### useBusChannel
+
+<FunctionDoc name="useBusChannel" />
 
 ---
 

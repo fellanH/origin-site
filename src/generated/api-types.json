@@ -1,0 +1,227 @@
+{
+  "interfaces": [
+    {
+      "name": "OriginChannelMap",
+      "description": "Open-ended channel registry. Each plugin extends this via declaration merging\nin its own `channels.d.ts` — no central file needed.",
+      "properties": [
+        {
+          "name": "com.origin.app:theme-changed",
+          "type": "object",
+          "description": "Fired whenever the system theme switches.",
+          "optional": false
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PluginBus",
+      "description": "Pub/sub bus injected into every plugin via PluginContext.",
+      "properties": [],
+      "methods": [
+        {
+          "name": "publish",
+          "description": "Broadcast a value on a channel. Cached as the last value.",
+          "parameters": [
+            {
+              "name": "channel",
+              "type": "K",
+              "description": "",
+              "optional": false
+            },
+            {
+              "name": "payload",
+              "type": "unknown",
+              "description": "",
+              "optional": false
+            }
+          ],
+          "returns": "void",
+          "example": ""
+        },
+        {
+          "name": "read",
+          "description": "Synchronously read the last published value on a channel.",
+          "parameters": [
+            {
+              "name": "channel",
+              "type": "K",
+              "description": "",
+              "optional": false
+            }
+          ],
+          "returns": "undefined | unknown",
+          "example": ""
+        },
+        {
+          "name": "subscribe",
+          "description": "Subscribe to a channel. Returns an unsubscribe function.",
+          "parameters": [
+            {
+              "name": "channel",
+              "type": "K",
+              "description": "",
+              "optional": false
+            },
+            {
+              "name": "handler",
+              "type": "(payload: unknown) => void",
+              "description": "",
+              "optional": false
+            }
+          ],
+          "returns": "() => void",
+          "example": ""
+        }
+      ]
+    },
+    {
+      "name": "PluginContext",
+      "description": "Runtime context injected by PluginHost into every plugin component",
+      "properties": [
+        {
+          "name": "bus",
+          "type": "PluginBus",
+          "description": "Inter-plugin communication bus scoped to this workspace",
+          "optional": false
+        },
+        {
+          "name": "cardId",
+          "type": "string",
+          "description": "Unique ID of the card this instance is mounted in",
+          "optional": false
+        },
+        {
+          "name": "theme",
+          "type": "\"light\" | \"dark\"",
+          "description": "Current app theme",
+          "optional": false
+        },
+        {
+          "name": "workspacePath",
+          "type": "string",
+          "description": "Absolute path to the workspace root directory (for file I/O)",
+          "optional": false
+        }
+      ],
+      "methods": [
+        {
+          "name": "on",
+          "description": "Subscribe to a panel lifecycle event.\nReturns an unsubscribe function — call it in your plugin's cleanup.",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "PluginLifecycleEvent",
+              "description": "",
+              "optional": false
+            },
+            {
+              "name": "handler",
+              "type": "() => void",
+              "description": "",
+              "optional": false
+            }
+          ],
+          "returns": "() => void",
+          "example": "```ts\nuseEffect(() => context.on('focus', () => console.log('focused')), []);\n```"
+        }
+      ]
+    },
+    {
+      "name": "PluginManifest",
+      "description": "Metadata declared by every plugin. Shown in the Launcher UI.",
+      "properties": [
+        {
+          "name": "description",
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        {
+          "name": "icon",
+          "type": "string",
+          "description": "Emoji or relative image path shown in the Launcher grid",
+          "optional": true
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Reverse-domain unique identifier, e.g. \"com.example.myplugin\"",
+          "optional": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "description": "Human-readable name shown in the Launcher",
+          "optional": false
+        },
+        {
+          "name": "requiredCapabilities",
+          "type": "string[]",
+          "description": "Tauri capabilities this plugin uses. Declarative only in v0.x — displayed\nin the plugin install UI so users can see what a plugin claims to need.\nEnforced by the capability broker at marketplace launch (v1.0).",
+          "optional": true
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "description": "",
+          "optional": false
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PluginModule",
+      "description": "",
+      "properties": [
+        {
+          "name": "default",
+          "type": "PluginComponent",
+          "description": "",
+          "optional": false
+        },
+        {
+          "name": "manifest",
+          "type": "PluginManifest",
+          "description": "",
+          "optional": false
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "typeAliases": [
+    {
+      "name": "PluginComponent",
+      "type": "React.ComponentType<object>",
+      "description": ""
+    },
+    {
+      "name": "PluginLifecycleEvent",
+      "type": "\"focus\" | \"blur\" | \"resize\" | \"zoom\" | \"zoom-exit\"",
+      "description": "Panel lifecycle event names emitted by PluginHost."
+    }
+  ],
+  "functions": [
+    {
+      "name": "useBusChannel",
+      "signature": "useBusChannel<K extends \"com.origin.app:theme-changed\">(bus: PluginBus, channel: K): undefined | unknown",
+      "description": "Reactively subscribe to a typed bus channel. Re-renders whenever a new value\nis published. Returns `undefined` before the first publish.\n\nChannel names are constrained to `keyof OriginChannelMap` — misspelled\nchannel names are compile errors. Plugins extend `OriginChannelMap` via\ndeclaration merging in their own `channels.d.ts`.",
+      "example": "```ts\nconst event = useBusChannel(context.bus, \"com.origin.app:theme-changed\");\n// event: { theme: \"light\" | \"dark\" } | undefined\n```",
+      "parameters": [
+        {
+          "name": "bus",
+          "type": "PluginBus",
+          "description": "",
+          "optional": false
+        },
+        {
+          "name": "channel",
+          "type": "K",
+          "description": "",
+          "optional": false
+        }
+      ],
+      "returns": "undefined | unknown"
+    }
+  ]
+}
