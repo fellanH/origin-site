@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet } from "react-router";
 
 export default function Layout() {
   return (
@@ -12,7 +12,7 @@ export default function Layout() {
             <NavLink
               to="/getting-started"
               className={({ isActive }) =>
-                isActive ? 'text-gray-900 font-medium' : 'hover:text-gray-900'
+                isActive ? "text-gray-900 font-medium" : "hover:text-gray-900"
               }
             >
               Getting Started
@@ -20,26 +20,18 @@ export default function Layout() {
             <NavLink
               to="/plugin-api"
               className={({ isActive }) =>
-                isActive ? 'text-gray-900 font-medium' : 'hover:text-gray-900'
+                isActive ? "text-gray-900 font-medium" : "hover:text-gray-900"
               }
             >
               Plugin API
             </NavLink>
             <NavLink
-              to="/architecture"
-              className={({ isActive }) =>
-                isActive ? 'text-gray-900 font-medium' : 'hover:text-gray-900'
-              }
-            >
-              Architecture
-            </NavLink>
-            <NavLink
               to="/plugins"
               className={({ isActive }) =>
-                isActive ? 'text-gray-900 font-medium' : 'hover:text-gray-900'
+                isActive ? "text-gray-900 font-medium" : "hover:text-gray-900"
               }
             >
-              Plugins
+              Showcase
             </NavLink>
           </div>
           <div className="ml-auto">
@@ -60,5 +52,5 @@ export default function Layout() {
         </article>
       </main>
     </div>
-  )
+  );
 }

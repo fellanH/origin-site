@@ -1,96 +1,175 @@
 # Plugin API
 
-Origin exposes three TypeScript types that every plugin must implement.
+A plugin is an npm package that exports a React component. Origin loads it into a panel at runtime.
 
-## PluginManifest
+## Quickstart
 
-Declares plugin identity and the entry point module.
+The fastest way to start is the official starter:
+
+```bash
+git clone https://github.com/fellanH/origin-plugin-starter my-plugin
+cd my-plugin
+npm install && npm run dev
+```
+
+Then in Origin: **Settings → Developer → Add plugin URL** → `http://localhost:5173`
+
+---
+
+## Types
+
+### PluginManifest
+
+Declares plugin identity shown in the launcher.
 
 ```ts
 interface PluginManifest {
-  id: string      // unique reverse-domain identifier, e.g. "com.example.my-plugin"
-  name: string    // human-readable display name
-  version: string // semver, e.g. "1.0.0"
-  entry: string   // path to the ESM entry module, e.g. "./index.js"
+  id: string; // reverse-domain, e.g. "com.yourname.myplugin"
+  name: string; // display name shown in launcher
+  description: string; // one-line description
+  icon: string; // emoji or image path
+  version: string; // semver, e.g. "0.1.0"
 }
 ```
 
-Provide a `manifest.json` at the root of your plugin package:
+### PluginContext
 
-```json
-{
-  "id": "com.example.weather",
-  "name": "Weather Widget",
-  "version": "1.0.0",
-  "entry": "./index.js"
-}
-```
-
-## PluginContext
-
-Passed to your component at render time. Gives the plugin information about its host panel and a channel to communicate with Origin.
+Injected by Origin into your component at mount time. Values are stable for the lifetime of the panel — they don't change reactively.
 
 ```ts
 interface PluginContext {
-  panelId: string                            // the panel instance ID
-  theme: 'light' | 'dark'                   // host app theme
-  emit: (event: string, data?: unknown) => void  // send events to Origin
+  cardId: string; // unique ID of this panel instance
+  workspacePath: string; // absolute path to Origin's app data directory
+  theme: "light" | "dark";
 }
 ```
 
-### Using context
+Use `cardId` to scope per-panel state. Use `workspacePath` as the root for any files you read or write.
+
+---
+
+## Full example
 
 ```tsx
-import type { PluginContext } from '@origin/sdk'
+// plugins/my-plugin/src/manifest.ts
+import type { PluginManifest } from "@origin/api";
 
-function MyPlugin({ context }: { context: PluginContext }) {
-  return (
-    <div data-theme={context.theme}>
-      <button onClick={() => context.emit('refresh')}>
-        Refresh
-      </button>
-    </div>
-  )
-}
+export const manifest: PluginManifest = {
+  id: "com.yourname.myplugin",
+  name: "My Plugin",
+  description: "Does something useful",
+  icon: "⚡",
+  version: "0.1.0",
+};
 ```
-
-## PluginComponent
-
-The type of the default export from your plugin's entry module.
-
-```ts
-type PluginComponent = React.ComponentType<{ context: PluginContext }>
-```
-
-Your plugin entry must export a default component matching this signature:
 
 ```tsx
-import type { PluginComponent } from '@origin/sdk'
+// plugins/my-plugin/src/index.tsx
+import type { PluginContext } from "@origin/api";
+export { manifest } from "./manifest";
 
-const MyPlugin: PluginComponent = ({ context }) => {
+export default function MyPlugin({ context }: { context: PluginContext }) {
+  const isDark = context.theme === "dark";
+
   return (
-    <div>
-      <p>Panel: {context.panelId}</p>
-      <p>Theme: {context.theme}</p>
+    <div className={`h-full p-4 ${isDark ? "text-zinc-100" : "text-zinc-900"}`}>
+      <p>Panel ID: {context.cardId}</p>
     </div>
-  )
+  );
 }
-
-export default MyPlugin
 ```
 
-## Lifecycle
+The entry file must:
 
-| Event | Description |
-|-------|-------------|
-| `mount` | Plugin component rendered into a panel |
-| `unmount` | Panel removed or plugin unloaded |
-| `theme-change` | Host theme switched, `context.theme` updated |
+- Have a **default export** that is a React component accepting `{ context: PluginContext }`
+- **Re-export `manifest`** as a named export so Origin can read metadata without fully loading the plugin
 
-Emit these from the plugin to signal state back to Origin:
+---
+
+## File I/O
+
+Use `context.workspacePath` as the root for any files your plugin reads or writes.
+
+```tsx
+import { readTextFile, writeTextFile, mkdir } from "@tauri-apps/plugin-fs";
+import { join } from "@tauri-apps/api/path";
+
+// Read a per-panel note file
+const dir = await join(context.workspacePath, "my-plugin");
+await mkdir(dir, { recursive: true });
+const file = await join(dir, `${context.cardId}.json`);
+const data = await readTextFile(file);
+```
+
+---
+
+## Registration
+
+To add a bundled plugin to the Origin app:
+
+### 1. `origin.plugins.json`
+
+```json
+{
+  "plugins": [{ "id": "com.yourname.myplugin", "package": "@origin/my-plugin" }]
+}
+```
+
+### 2. `src/plugins/registry.ts`
+
+The import string must be a **static literal** so Vite can emit the chunk at build time:
 
 ```ts
-context.emit('ready')           // signal that async init is done
-context.emit('error', message)  // report an error to the host
-context.emit('resize', { h })   // request panel resize
+const BUNDLED = {
+  "com.yourname.myplugin": {
+    load: () => import("@origin/my-plugin") as Promise<PluginModule>,
+    name: "My Plugin",
+    icon: "⚡",
+  },
+};
 ```
+
+### 3. `vite.config.ts`
+
+```ts
+resolve: {
+  alias: {
+    "@origin/my-plugin": path.resolve(__dirname, "plugins/my-plugin/src"),
+  },
+},
+optimizeDeps: {
+  include: ["@origin/my-plugin"],
+},
+```
+
+### 4. `tsconfig.json`
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@origin/my-plugin": ["./plugins/my-plugin/src"],
+      "@origin/my-plugin/*": ["./plugins/my-plugin/src/*"]
+    }
+  }
+}
+```
+
+---
+
+## package.json
+
+```json
+{
+  "name": "@origin/my-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
+  "dependencies": {
+    "@origin/api": "*"
+  }
+}
+```
+
+Then run `npm install` to link the workspace package.
