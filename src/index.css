@@ -1,84 +1,170 @@
 @import "tailwindcss";
 
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+
+html {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Prose CSS variables (light) ───────────────────────────────────────────── */
+
+article {
+  --prose-body: #52525b; /* zinc-600 */
+  --prose-heading: #09090b; /* zinc-950 */
+  --prose-link: #2563eb; /* blue-600 */
+  --prose-code-bg: #f4f4f5; /* zinc-100 */
+  --prose-code-fg: #18181b; /* zinc-900 */
+  --prose-pre-bg: #18181b; /* zinc-900 — dark code blocks in light mode */
+  --prose-pre-fg: #e4e4e7; /* zinc-200 */
+  --prose-border: #e4e4e7; /* zinc-200 */
+  --prose-muted: #71717a; /* zinc-500 */
+  --prose-strong: #09090b; /* zinc-950 */
+}
+
+/* ── Prose CSS variables (dark) ────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  article {
+    --prose-body: #a1a1aa; /* zinc-400 */
+    --prose-heading: #fafafa; /* zinc-50 */
+    --prose-link: #60a5fa; /* blue-400 */
+    --prose-code-bg: #27272a; /* zinc-800 */
+    --prose-code-fg: #e4e4e7; /* zinc-200 */
+    --prose-pre-bg: #09090b; /* zinc-950 */
+    --prose-pre-fg: #e4e4e7; /* zinc-200 */
+    --prose-border: #3f3f46; /* zinc-700 */
+    --prose-muted: #71717a; /* zinc-500 */
+    --prose-strong: #fafafa; /* zinc-50 */
+  }
+}
+
+/* ── Prose element styles ──────────────────────────────────────────────────── */
+
 article h1 {
   font-size: 2rem;
   font-weight: 700;
-  margin-bottom: 1rem;
-  margin-top: 0;
-}
-article h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
   margin-bottom: 0.75rem;
-  margin-top: 2rem;
+  margin-top: 0;
+  color: var(--prose-heading);
 }
+
+article h2 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.75rem;
+  margin-top: 2.5rem;
+  color: var(--prose-heading);
+}
+
 article h3 {
-  font-size: 1.25rem;
+  font-size: 1.0625rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
+  color: var(--prose-heading);
 }
+
 article p {
   margin-bottom: 1rem;
-  line-height: 1.7;
-  color: #374151;
+  line-height: 1.75;
+  color: var(--prose-body);
 }
+
+article strong {
+  font-weight: 600;
+  color: var(--prose-strong);
+}
+
 article pre {
-  background: #f3f4f6;
-  padding: 1rem;
+  background: var(--prose-pre-bg);
+  border: 1px solid var(--prose-border);
+  padding: 1rem 1.25rem;
   border-radius: 0.5rem;
   overflow-x: auto;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.7;
 }
+
 article code {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.875em;
 }
+
 article pre code {
   font-size: inherit;
+  color: var(--prose-pre-fg);
+  background: transparent;
 }
+
 article ul,
 article ol {
   margin-bottom: 1rem;
   padding-left: 1.5rem;
 }
+
 article li {
   margin-bottom: 0.25rem;
-  line-height: 1.7;
+  line-height: 1.75;
+  color: var(--prose-body);
 }
+
 article a {
-  color: #2563eb;
+  color: var(--prose-link);
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
+
 article table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
 }
+
 article th {
   text-align: left;
-  padding: 0.5rem 1rem;
-  border-bottom: 2px solid #e5e7eb;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--prose-border);
   font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--prose-heading);
 }
+
 article td {
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--prose-border);
+  color: var(--prose-body);
 }
+
+article tr:last-child td {
+  border-bottom: none;
+}
+
 article hr {
   border: none;
-  border-top: 1px solid #e5e7eb;
-  margin: 2rem 0;
+  border-top: 1px solid var(--prose-border);
+  margin: 2.5rem 0;
 }
+
 article blockquote {
-  border-left: 3px solid #e5e7eb;
+  border-left: 3px solid var(--prose-border);
   padding-left: 1rem;
-  color: #6b7280;
+  color: var(--prose-muted);
   margin-bottom: 1rem;
+  font-style: italic;
 }
+
 article :not(pre) > code {
-  background: #f3f4f6;
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
+  background: var(--prose-code-bg);
+  color: var(--prose-code-fg);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.3rem;
+  font-size: 0.875em;
 }
