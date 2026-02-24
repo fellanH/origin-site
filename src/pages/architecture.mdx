@@ -1,0 +1,71 @@
+# Architecture
+
+Origin plugins are standard npm packages, isolated in their own browser context and communicated with via a custom protocol.
+
+## Overview
+
+```
+Plugin package (npm)
+  └── dist/
+        ├── index.js      ← ESM entry (PluginComponent default export)
+        ├── manifest.json ← PluginManifest
+        └── assets/       ← bundled CSS, images, etc.
+
+Origin (Tauri + Rust)
+  └── AppData/
+        └── plugins/
+              └── {id}/   ← installed plugin files
+
+Webview (per panel)
+  └── plugin://{id}/      ← Tauri custom protocol
+        └── index.js      ← served from AppData
+```
+
+## Plugin protocol
+
+Origin registers a Tauri [custom protocol](https://tauri.app/plugin/custom-protocol/) at `plugin://`:
+
+```
+plugin://localhost/{plugin-id}/index.js
+```
+
+When a panel loads a plugin, Origin's webview requests the entry file over this protocol. The Tauri Rust backend intercepts the request, reads the corresponding file from AppData, and returns it with appropriate headers.
+
+This gives each plugin a stable, predictable URL namespace while keeping files off the public internet.
+
+## Import maps
+
+Origin injects an [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap) into each panel webview:
+
+```json
+{
+  "imports": {
+    "react": "https://esm.sh/react@18",
+    "react-dom": "https://esm.sh/react-dom@18"
+  }
+}
+```
+
+This lets plugins import `react` and `react-dom` as bare specifiers without bundling them — they resolve to the same React instance as the host, preventing hook reconciliation errors.
+
+## Registry flow
+
+```
+1. User installs plugin (zip → AppData/{id}/)
+2. Origin reads manifest.json → registers in registry.json
+3. Panel created → registry consulted for entry URL
+4. Webview navigates to plugin://localhost/{id}/
+5. Import map injected → plugin ESM loaded
+6. PluginComponent mounted with PluginContext
+```
+
+## Security model
+
+- Plugins run in a sandboxed Tauri webview
+- No access to host filesystem beyond their own AppData directory
+- Network access controlled by Tauri's CSP and capability system
+- `context.emit` is the only communication channel to the host
+
+## Development mode
+
+During development, `npm run dev` exposes the plugin on `http://localhost:5173`. Origin's dev loader bypasses the registry and loads directly from the dev server URL, enabling hot module replacement.

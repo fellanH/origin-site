@@ -1,0 +1,96 @@
+# Plugin API
+
+Origin exposes three TypeScript types that every plugin must implement.
+
+## PluginManifest
+
+Declares plugin identity and the entry point module.
+
+```ts
+interface PluginManifest {
+  id: string      // unique reverse-domain identifier, e.g. "com.example.my-plugin"
+  name: string    // human-readable display name
+  version: string // semver, e.g. "1.0.0"
+  entry: string   // path to the ESM entry module, e.g. "./index.js"
+}
+```
+
+Provide a `manifest.json` at the root of your plugin package:
+
+```json
+{
+  "id": "com.example.weather",
+  "name": "Weather Widget",
+  "version": "1.0.0",
+  "entry": "./index.js"
+}
+```
+
+## PluginContext
+
+Passed to your component at render time. Gives the plugin information about its host panel and a channel to communicate with Origin.
+
+```ts
+interface PluginContext {
+  panelId: string                            // the panel instance ID
+  theme: 'light' | 'dark'                   // host app theme
+  emit: (event: string, data?: unknown) => void  // send events to Origin
+}
+```
+
+### Using context
+
+```tsx
+import type { PluginContext } from '@origin/sdk'
+
+function MyPlugin({ context }: { context: PluginContext }) {
+  return (
+    <div data-theme={context.theme}>
+      <button onClick={() => context.emit('refresh')}>
+        Refresh
+      </button>
+    </div>
+  )
+}
+```
+
+## PluginComponent
+
+The type of the default export from your plugin's entry module.
+
+```ts
+type PluginComponent = React.ComponentType<{ context: PluginContext }>
+```
+
+Your plugin entry must export a default component matching this signature:
+
+```tsx
+import type { PluginComponent } from '@origin/sdk'
+
+const MyPlugin: PluginComponent = ({ context }) => {
+  return (
+    <div>
+      <p>Panel: {context.panelId}</p>
+      <p>Theme: {context.theme}</p>
+    </div>
+  )
+}
+
+export default MyPlugin
+```
+
+## Lifecycle
+
+| Event | Description |
+|-------|-------------|
+| `mount` | Plugin component rendered into a panel |
+| `unmount` | Panel removed or plugin unloaded |
+| `theme-change` | Host theme switched, `context.theme` updated |
+
+Emit these from the plugin to signal state back to Origin:
+
+```ts
+context.emit('ready')           // signal that async init is done
+context.emit('error', message)  // report an error to the host
+context.emit('resize', { h })   // request panel resize
+```

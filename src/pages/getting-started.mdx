@@ -1,0 +1,52 @@
+# Getting Started
+
+Build your first Origin plugin in minutes. Plugins are React components published as npm packages and installed into Origin's registry.
+
+## Prerequisites
+
+- Node.js 18+
+- Origin desktop app installed
+
+## 1. Clone the starter
+
+```bash
+git clone https://github.com/fellanH/origin-plugin-starter my-plugin
+cd my-plugin
+npm install
+```
+
+## 2. Start the dev server
+
+```bash
+npm run dev
+```
+
+This starts a local Vite server on `http://localhost:5173`. Keep it running — Origin will load your plugin from here during development.
+
+## 3. Load in Origin
+
+Open Origin → Settings → Developer → Add Plugin URL:
+
+```
+http://localhost:5173/
+```
+
+Your plugin appears immediately in the dashboard. Changes hot-reload without restarting Origin.
+
+## 4. Build for production
+
+```bash
+npm run build
+```
+
+This produces a `dist/` folder with your plugin bundle. The entry point is `dist/index.js`.
+
+## 5. Install into Origin
+
+Zip the `dist/` folder and install via Origin → Settings → Plugins → Install from file. Origin copies the bundle to its AppData directory and registers it in the plugin registry.
+
+## Next steps
+
+- Read the [Plugin API reference](/plugin-api) to learn about `PluginManifest`, `PluginContext`, and `PluginComponent`
+- Browse the [plugin gallery](/plugins) for examples
+- Study the [architecture](/architecture) to understand how plugins are served and isolated
