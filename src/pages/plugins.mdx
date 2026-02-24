@@ -1,0 +1,92 @@
+# Plugin Showcase
+
+Origin ships with six bundled plugins. Each is a full-featured panel you can add to any workspace.
+
+---
+
+## ⌨️ Terminal
+
+A full PTY terminal running your default shell. Split it alongside your editor for a complete dev environment.
+
+**What it does:**
+
+- Full pseudo-terminal (PTY) — runs bash, zsh, fish, etc.
+- Resize-aware — sends `SIGWINCH` when the panel resizes
+- Preserves session state across panel resizes
+- Monospace rendering, dark/light theme aware
+
+---
+
+## 🌲 File Tree
+
+Browse your filesystem in a collapsible tree view. Click a file to open it in Monaco Editor.
+
+**What it does:**
+
+- Recursive directory listing
+- Expand/collapse directories
+- Click-to-open integration with Monaco Editor
+- Respects `.gitignore` patterns
+
+---
+
+## ✏️ Monaco Editor
+
+The same editor that powers VS Code, running inside an Origin panel.
+
+**What it does:**
+
+- Syntax highlighting for 80+ languages
+- IntelliSense and autocomplete
+- Find & replace (`Cmd+F`)
+- Opens files from File Tree via panel events
+- Dark and light themes
+
+---
+
+## 📝 Notepad
+
+A per-panel plain-text notepad. Notes are saved automatically as Markdown files in Origin's app data directory.
+
+**What it does:**
+
+- Full-height textarea with monospace font
+- Autosaves 800ms after the last keystroke
+- Each panel gets its own `.md` file (`{workspacePath}/notepad/{cardId}.md`)
+- "Saved" / "Saving…" status indicator
+
+Useful for scratch notes, command snippets, or anything you want to keep alongside your other panels.
+
+---
+
+## 🌐 Browser
+
+An embedded web view inside a panel. Navigate any URL without leaving Origin.
+
+**What it does:**
+
+- Full Chromium-based web view
+- Address bar with navigation controls
+- Useful for local dev servers, documentation, or dashboards
+
+---
+
+## 🐙 GitHub PRs
+
+Track open pull requests for any GitHub repository. No auth required for public repos.
+
+**What it does:**
+
+- Setup screen: enter owner + repo name
+- Lists open PRs with: status (draft / ready), PR number, title, author avatar, labels, relative timestamp
+- Click any PR to open it in your system browser
+- Auto-refreshes every 5 minutes
+- Config saved per-panel (`{workspacePath}/github/{cardId}.json`)
+
+---
+
+## Build your own
+
+Every bundled plugin is in `plugins/` at the root of the Origin repo. Fork one as a starting point, or use the [starter template](https://github.com/fellanH/origin-plugin-starter).
+
+See the [Plugin API docs](/plugin-api) for types, registration steps, and file I/O patterns.
