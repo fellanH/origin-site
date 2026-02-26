@@ -4,6 +4,8 @@ import { InterfaceDoc, TypeAliasDoc, FunctionDoc } from "../components/ApiDocs";
 
 A plugin is an npm package that exports a React component. Origin loads it into a panel at runtime.
 
+**Source of truth:** [`@origin/api` on npm](https://www.npmjs.com/package/@origin-cards/api) · [hello plugin source](https://github.com/fellanH/origin/tree/main/plugins/hello)
+
 ## Quickstart
 
 The fastest way to start is the official starter:
@@ -56,6 +58,42 @@ declare module "@origin/api" {
   interface OriginChannelMap {
     "com.yourname.myplugin:item-selected": { id: string; label: string };
   }
+}
+```
+
+### PluginComponent
+
+The type signature for a plugin's React component.
+
+<TypeAliasDoc name="PluginComponent" />
+
+Your default export must satisfy this type. Origin passes `{ context: PluginContext }` as props at mount time:
+
+```tsx
+import type { PluginContext } from "@origin/api";
+
+const MyPlugin: React.FC<{ context: PluginContext }> = ({ context }) => {
+  return <div>Hello from {context.cardId}</div>;
+};
+
+export default MyPlugin;
+```
+
+### PluginModule
+
+The shape Origin expects when it dynamically imports a plugin package. Every plugin entry file must satisfy this contract.
+
+<InterfaceDoc name="PluginModule" />
+
+Origin calls `import("@origin/my-plugin")` and expects the resolved module to have both a `default` export (the component) and a named `manifest` export:
+
+```tsx
+// plugins/my-plugin/src/index.tsx
+import type { PluginContext } from "@origin/api";
+export { manifest } from "./manifest";
+
+export default function MyPlugin({ context }: { context: PluginContext }) {
+  return <p>{context.cardId}</p>;
 }
 ```
 
