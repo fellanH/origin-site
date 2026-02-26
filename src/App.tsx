@@ -129,6 +129,7 @@ export default function App() {
         <Route index element={<Home />} />
         <Route path="getting-started" element={<GettingStarted />} />
         <Route path="plugin-api" element={<PluginApi />} />
+        <Route path="api-reference" element={<PluginApi />} />
         <Route path="architecture" element={<Architecture />} />
         <Route path="plugins" element={<Showcase />} />
       </Route>
