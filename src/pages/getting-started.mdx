@@ -1,74 +1,113 @@
+import Callout from "../components/Callout";
+
 # Getting Started
 
-Origin is a macOS desktop app. Get it running in a few minutes.
+Build your first Origin plugin — from zero to installed — in about five minutes.
 
-## Install
+---
 
-**Homebrew (recommended)**
+## 1. Prerequisites
+
+You'll need the following before you start:
+
+- **Node.js 22+** — check with `node -v`
+- **Origin desktop app** — [Download the latest release](https://github.com/fellanH/origin/releases), or install via Homebrew:
 
 ```bash
-brew tap fellanH/note
+brew tap fellanH/origin
 brew install --cask origin
 ```
 
-**Direct download**
-
-Grab the latest `.dmg` from [GitHub releases](https://github.com/fellanH/origin/releases), open it, and drag Origin to your Applications folder.
-
-**Requirements:** macOS Ventura or later, Apple Silicon or Intel.
-
----
-
-## Add your first panel
-
-When Origin opens you'll see an empty workspace. To add a panel:
-
-1. Click the **+** button in the toolbar, or press `Cmd+N`
-2. The plugin launcher opens — pick a plugin from the list
-3. The panel appears in the workspace
-
-Panels can be split horizontally or vertically. Drag the resize handle between panels to adjust sizes.
-
-**Keyboard shortcuts**
-
-| Action               | Shortcut  |
-| -------------------- | --------- |
-| New panel            | `Cmd+N`   |
-| Close panel          | `Cmd+W`   |
-| Split horizontally   | `Cmd+\`   |
-| Split vertically     | `Cmd+-`   |
-| Switch workspace tab | `Cmd+1–9` |
+<Callout type="tip">
+  Already have an older Node version? We recommend using
+  [fnm](https://github.com/Schniz/fnm) or [nvm](https://github.com/nvm-sh/nvm)
+  to manage multiple versions.
+</Callout>
 
 ---
 
-## Install a plugin
+## 2. Clone the starter
 
-Origin ships with six bundled plugins. To install a community plugin:
+Grab the official plugin starter template:
 
-1. Open **Settings → Plugins → Browse**
-2. Find the plugin and click **Install**
+```bash
+gh repo clone fellanH/origin-plugin-starter my-plugin
+cd my-plugin
+```
 
-Or install from a local file:
-
-1. Download the plugin `.zip` from its GitHub releases page
-2. Open **Settings → Plugins → Install from file**
-3. Select the `.zip`
-
-The plugin appears in the launcher immediately.
-
----
-
-## Build a plugin
-
-Want to build your own? See the [Plugin API reference](/plugin-api).
-
-The quickest path is the official starter:
+Or with `git`:
 
 ```bash
 git clone https://github.com/fellanH/origin-plugin-starter my-plugin
 cd my-plugin
+```
+
+The starter includes a working `manifest.json`, a React component, and a Vite dev server pre-configured for Origin's plugin protocol.
+
+---
+
+## 3. Install and dev
+
+Install dependencies and start the dev server:
+
+```bash
 npm install
 npm run dev
 ```
 
-Then load it in Origin via **Settings → Developer → Add plugin URL** pointing to `http://localhost:5173`.
+This starts a local server at `http://localhost:5173`. Origin can load your plugin directly from this URL during development.
+
+To see it live, open Origin and go to **Settings → Developer → Add plugin URL**, then paste `http://localhost:5173`.
+
+<Callout type="info">
+  Hot module replacement works out of the box — save a file and see changes
+  instantly in Origin.
+</Callout>
+
+---
+
+## 4. Build
+
+When you're ready to ship, create a production build:
+
+```bash
+npm run build
+```
+
+This compiles your plugin into the `dist/` folder — a self-contained bundle that Origin can load without a dev server.
+
+<Callout type="warning">
+  Make sure your `manifest.json` has a unique `id` field before building. Two
+  plugins with the same ID will conflict.
+</Callout>
+
+---
+
+## 5. Install into Origin
+
+Install the built plugin into your local Origin app:
+
+```bash
+npm run install:plugin
+```
+
+This copies `dist/` into Origin's plugin directory. The plugin will be available immediately — no restart required.
+
+---
+
+## 6. See it work
+
+1. Open **Origin**
+2. Open the **Plugin Manager** (Settings → Plugins)
+3. Find your plugin in the list and **enable** it
+4. Press `Cmd+N` to open the launcher, then select your plugin
+
+Your plugin is now running as a panel in Origin.
+
+---
+
+## Next steps
+
+- Read the [Plugin API reference](/plugin-api) for the full type definitions and lifecycle hooks
+- Browse the [starter repo source](https://github.com/fellanH/origin-plugin-starter) to understand the project structure
+- Check out the [Architecture](/architecture) page to learn how plugins communicate with the host app
