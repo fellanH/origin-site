@@ -1,71 +1,216 @@
+import Callout from "../components/Callout";
+
 # Architecture
 
-Origin plugins are standard npm packages, isolated in their own browser context and communicated with via a custom protocol.
+How Origin loads and runs plugins — from protocol routing to security boundaries.
+
+---
 
 ## Overview
 
+Origin is a Tauri desktop app where every panel runs an isolated plugin. Plugins are standard npm packages served over a custom `plugin://` protocol, sharing the host's React via an import map.
+
 ```
-Plugin package (npm)
-  └── dist/
-        ├── index.js      ← ESM entry (PluginComponent default export)
-        ├── manifest.json ← PluginManifest
-        └── assets/       ← bundled CSS, images, etc.
-
-Origin (Tauri + Rust)
-  └── AppData/
-        └── plugins/
-              └── {id}/   ← installed plugin files
-
-Webview (per panel)
-  └── plugin://{id}/      ← Tauri custom protocol
-        └── index.js      ← served from AppData
+┌─────────────────────────────────────────────────────────┐
+│  Origin (Tauri shell)                                   │
+│                                                         │
+│  ┌──────────────┐   ┌──────────────┐   ┌─────────────┐ │
+│  │  Panel A      │   │  Panel B      │   │  Panel C    │ │
+│  │  plugin://a/  │   │  plugin://b/  │   │  plugin://c/│ │
+│  │  ┌─────────┐  │   │  ┌─────────┐  │   │ ┌────────┐ │ │
+│  │  │ React   │  │   │  │ React   │  │   │ │ React  │ │ │
+│  │  │Component│  │   │  │Component│  │   │ │Compnent│ │ │
+│  │  └─────────┘  │   │  └─────────┘  │   │ └────────┘ │ │
+│  └──────┬───────┘   └──────┬───────┘   └─────┬──────┘ │
+│         │                  │                  │         │
+│         └──────────┬───────┴──────────────────┘         │
+│                    ▼                                    │
+│  ┌─────────────────────────────────────────────┐        │
+│  │  Rust backend                               │        │
+│  │  • plugin:// protocol handler               │        │
+│  │  • registry.ts state                        │        │
+│  │  • import map injection                     │        │
+│  │  • filesystem / CSP enforcement             │        │
+│  └─────────────────────────────────────────────┘        │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## Plugin protocol
+---
 
-Origin registers a Tauri [custom protocol](https://tauri.app/plugin/custom-protocol/) at `plugin://`:
+## 1. The plugin:// protocol
+
+Origin registers a Tauri [custom protocol](https://tauri.app/plugin/custom-protocol/) that intercepts all `plugin://` URLs. When a panel loads a plugin, the webview requests its entry file at:
 
 ```
 plugin://localhost/{plugin-id}/index.js
 ```
 
-When a panel loads a plugin, Origin's webview requests the entry file over this protocol. The Tauri Rust backend intercepts the request, reads the corresponding file from AppData, and returns it with appropriate headers.
+The Rust backend handles this request by:
+
+1. Parsing the `{plugin-id}` from the URL path
+2. Looking up the plugin's install directory under `AppData/plugins/{id}/`
+3. Reading the requested file from disk
+4. Returning it with the correct `Content-Type` header
 
 This gives each plugin a stable, predictable URL namespace while keeping files off the public internet.
 
-## Import maps
+<Callout type="info">
+  During development, Origin's dev loader bypasses the protocol and loads
+  directly from `http://localhost:5173`, enabling hot module replacement.
+</Callout>
 
-Origin injects an [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap) into each panel webview:
+**Source:** [`src-tauri/src/protocol.rs`](https://github.com/fellanH/origin/blob/main/src-tauri/src/protocol.rs)
+
+---
+
+## 2. The plugin registry
+
+The registry is the central index of every installed plugin. It lives in
+[`src/plugins/registry.ts`](https://github.com/fellanH/origin/blob/main/src/plugins/registry.ts)
+and maps plugin IDs to their loader functions and metadata.
+
+For bundled plugins, each entry uses a static `import()` so Vite can code-split at build time:
+
+```ts
+const BUNDLED = {
+  "com.origin.terminal": {
+    load: () => import("@origin/terminal") as Promise<PluginModule>,
+    name: "Terminal",
+    icon: "⌨️",
+  },
+  // …
+};
+```
+
+When Origin starts, the registry:
+
+1. Reads `origin.plugins.json` for the list of known plugins
+2. Merges bundled plugins (compiled into the app) with user-installed plugins (discovered from `AppData/plugins/`)
+3. Exposes a lookup function that panels call to resolve a plugin ID to its loader
+
+The registry also persists user-installed plugin metadata to `registry.json` in the app data directory so plugins survive app restarts.
+
+**Source:** [`src/plugins/registry.ts`](https://github.com/fellanH/origin/blob/main/src/plugins/registry.ts) · [`origin.plugins.json`](https://github.com/fellanH/origin/blob/main/origin.plugins.json)
+
+---
+
+## 3. The import map
+
+Plugins must share the host's React instance — if a plugin bundles its own copy of React, hook state and reconciliation break. Origin solves this by injecting an [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap) into each panel's webview:
 
 ```json
 {
   "imports": {
     "react": "https://esm.sh/react@18",
-    "react-dom": "https://esm.sh/react-dom@18"
+    "react-dom": "https://esm.sh/react-dom@18",
+    "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime"
   }
 }
 ```
 
-This lets plugins import `react` and `react-dom` as bare specifiers without bundling them — they resolve to the same React instance as the host, preventing hook reconciliation errors.
+When a plugin's ESM bundle contains `import React from "react"`, the browser resolves it through the import map to the shared instance instead of trying to fetch a local module.
 
-## Registry flow
+This means plugin authors can write standard React code with bare specifiers — no special configuration required. The host controls which version is loaded.
+
+**Source:** [`src-tauri/src/webview.rs`](https://github.com/fellanH/origin/blob/main/src-tauri/src/webview.rs)
+
+---
+
+## 4. Plugin lifecycle
+
+A plugin moves through four stages:
 
 ```
-1. User installs plugin (zip → AppData/{id}/)
-2. Origin reads manifest.json → registers in registry.json
-3. Panel created → registry consulted for entry URL
-4. Webview navigates to plugin://localhost/{id}/
-5. Import map injected → plugin ESM loaded
-6. PluginComponent mounted with PluginContext
+  Install           Register          Render           Uninstall
+ ┌────────┐      ┌───────────┐     ┌─────────┐      ┌───────────┐
+ │ Unpack │ ───▶ │ Add to    │ ──▶ │ Mount   │ ──▶  │ Unmount & │
+ │ to     │      │ registry  │     │ React   │      │ remove    │
+ │AppData │      │ & read    │     │component│      │ from      │
+ │        │      │ manifest  │     │ in panel│      │ registry  │
+ └────────┘      └───────────┘     └─────────┘      └───────────┘
+      │                │                │                  │
+      ▼                ▼                ▼                  ▼
+  Files land in   manifest.json    PluginContext       Files deleted
+  plugins/{id}/   parsed, entry    injected as props   from AppData,
+                  URL recorded     (cardId, theme,     registry.json
+                  in registry      workspacePath,      entry removed
+                                   bus, emit)
 ```
 
-## Security model
+### Install
 
-- Plugins run in a sandboxed Tauri webview
-- No access to host filesystem beyond their own AppData directory
-- Network access controlled by Tauri's CSP and capability system
-- `context.emit` is the only communication channel to the host
+The user provides a plugin as a zip file, a URL, or a dev server address. Origin extracts the package into `AppData/plugins/{id}/`, which must contain at minimum:
+
+- `index.js` — the ESM entry point (default-exports a `PluginComponent`)
+- `manifest.json` — declares `id`, `name`, `version`, `icon`, and `description`
+
+### Register
+
+Origin reads `manifest.json` and adds an entry to `registry.json`. The registry now knows the plugin's ID, display name, icon, and the `plugin://` URL to its entry file.
+
+### Render
+
+When a panel is created (or a workspace is restored), Origin:
+
+1. Consults the registry for the plugin's loader
+2. Injects the import map into the webview
+3. Dynamically imports the entry file via `plugin://localhost/{id}/index.js`
+4. Mounts the default-exported React component, passing a `PluginContext` as props
+
+The `PluginContext` provides the panel with its `cardId`, current `theme`, `workspacePath`, and a `bus` for inter-plugin communication.
+
+### Uninstall
+
+When the user removes a plugin:
+
+1. The component is unmounted (React cleanup runs)
+2. The entry is deleted from `registry.json`
+3. The plugin's directory is removed from `AppData/plugins/{id}/`
+
+**Source:** [`src/plugins/registry.ts`](https://github.com/fellanH/origin/blob/main/src/plugins/registry.ts) · [`src/plugins/loader.ts`](https://github.com/fellanH/origin/blob/main/src/plugins/loader.ts)
+
+---
+
+## 5. Security boundary
+
+Plugins run inside Tauri webviews with several layers of isolation:
+
+| Layer | What it controls |
+|---|---|
+| **Webview sandbox** | Each panel runs in its own webview context — plugins cannot access each other's DOM or JavaScript scope |
+| **Filesystem scope** | Plugins can only read/write within their own `AppData` directory and the current `workspacePath`. No access to the broader filesystem |
+| **CSP (Content Security Policy)** | Tauri's capability system restricts which domains a plugin can fetch from. Network access is deny-by-default |
+| **Communication** | `context.emit` and `context.bus` are the only channels to the host and other plugins. There is no direct function-call bridge to the Rust backend |
+| **No Node.js** | Plugins run in a browser context, not Node. They cannot spawn processes, access `fs`, or use native modules directly |
+
+<Callout type="warning">
+  Plugins cannot escalate privileges. The Tauri capability system must
+  explicitly grant any permission beyond the default sandbox. See the
+  [Tauri security docs](https://tauri.app/security/) for details.
+</Callout>
+
+**Source:** [`src-tauri/capabilities/`](https://github.com/fellanH/origin/tree/main/src-tauri/capabilities)
+
+---
 
 ## Development mode
 
-During development, `npm run dev` exposes the plugin on `http://localhost:5173`. Origin's dev loader bypasses the registry and loads directly from the dev server URL, enabling hot module replacement.
+During development, `npm run dev` in a plugin directory starts a Vite dev server at `http://localhost:5173`. Origin's dev loader bypasses the registry and the `plugin://` protocol, loading the plugin directly from the dev server URL.
+
+This enables:
+
+- **Hot module replacement** — save a file and see changes instantly
+- **Source maps** — full stack traces pointing to your original TypeScript
+- **Fast feedback** — no build or install step required
+
+Add your dev URL in **Settings → Developer → Add plugin URL**.
+
+**Source:** [`src/plugins/dev-loader.ts`](https://github.com/fellanH/origin/blob/main/src/plugins/dev-loader.ts)
+
+---
+
+## Further reading
+
+- [Getting Started](/getting-started) — build your first plugin in five minutes
+- [Plugin API](/plugin-api) — full type definitions and lifecycle hooks
+- [Origin source](https://github.com/fellanH/origin) — browse the full codebase
